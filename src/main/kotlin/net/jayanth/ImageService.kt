@@ -13,6 +13,7 @@ import org.springframework.core.io.Resource
 import org.springframework.core.io.ResourceLoader
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.messaging.simp.SimpMessagingTemplate
 import org.springframework.stereotype.Service
 import org.springframework.util.FileCopyUtils
 import org.springframework.util.FileSystemUtils
@@ -29,7 +30,8 @@ import java.nio.file.Paths
 @Service
 class ImageService @Autowired constructor (var imageRepository: ImageRepository, var resourceLoader: ResourceLoader,
                                            var report: ConditionEvaluationReport, var counterService: CounterService,
-                                           var gaugeService: GaugeService, var inMemoryMetricRepository: InMemoryMetricRepository) {
+                                           var gaugeService: GaugeService, var inMemoryMetricRepository: InMemoryMetricRepository,
+                                           var messagingTemplate: SimpMessagingTemplate) {
 
     init {
         counterService.reset("files.uploaded")
@@ -54,6 +56,7 @@ class ImageService @Autowired constructor (var imageRepository: ImageRepository,
             counterService.increment("files.uploaded")
             gaugeService.submit("files.uploaded.lastBytes",file.size.toDouble())
             inMemoryMetricRepository.increment(Delta("files.uploaded.totalBytes",file.size.toDouble()))
+            messagingTemplate.convertAndSend("/topic/newImage", file.originalFilename)
         }
     }
 
@@ -61,6 +64,7 @@ class ImageService @Autowired constructor (var imageRepository: ImageRepository,
         var byName: Image = imageRepository.findByName(filename)
         imageRepository.delete(byName)
         Files.deleteIfExists(Paths.get(UPLOAD_ROOT, filename))
+        messagingTemplate.convertAndSend("/topic/deleteImage", filename)
     }
 
     @Bean

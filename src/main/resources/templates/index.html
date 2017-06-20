@@ -4,10 +4,11 @@
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>ImageApp</title>
+    <script src="webjars/requirejs/2.3.3/require.js" />
     <link rel="stylesheet" href="/main.css" />
 </head>
 <body>
-
+<h2>Spring Boot WebSocket Image App</h2>
 <h3 th:if="${#vars['flash.message']}" th:text="${#vars['flash.message']}" class="flash"></h3>
 <div>
     <h3 th:text="${page.number+1} + ' of ' + ${page.totalPages}"></h3>
@@ -40,6 +41,24 @@
         <p><input type="submit" value="Upload" /></p>
     </form>
 </div>
+<script th:inline="javascript">
+/*<![CDATA[*/
+(function(){
+    window.require(['webjars/stompjs/2.3.3/lib/stomp','webjars/sockjs-client/1.1.4/dist/sockjs'], function (stomp, SockJS) {
+        var socket = SockJS('/imageMessages');
+        var stompClient = Stomp.over(socket);
 
+        var redrawCurrentPage = function (message) {
+            console.log(message);
+            window.location = /*[[@{/(size=${page.size},page=${page.number})}]]*/'';
+        }
+        stompClient.connect({/*Optional Headers*/}, function(frame){
+            stompClient.subscribe('/topic/newImage', redrawCurrentPage);
+            stompClient.subscribe('/topic/deleteImage', redrawCurrentPage);
+        })
+    })
+})();
+/*]]>*/
+</script>
 </body>
 </html>

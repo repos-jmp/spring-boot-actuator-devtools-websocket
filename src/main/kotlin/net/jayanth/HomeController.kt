@@ -50,7 +50,7 @@ class HomeController @Autowired constructor(val imageService: ImageService) {
     fun createFile(@RequestParam("file") file: MultipartFile, redirectAttributes: RedirectAttributes): String {
         try {
             imageService.createImage(file)
-            redirectAttributes.addFlashAttribute("flash.message", "Successfully uploaded : ${file.originalFilename}")
+            redirectAttributes.addFlashAttribute("flash.message", "Successfully uploaded image : ${file.originalFilename}")
         } catch (e: IOException) {
             redirectAttributes.addFlashAttribute("flash.message", "Failed to upload : ${file.originalFilename} \n" + e.message)
         }
