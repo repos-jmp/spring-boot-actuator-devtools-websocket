@@ -13,7 +13,10 @@ import org.springframework.core.io.Resource
 import org.springframework.core.io.ResourceLoader
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
+import org.springframework.data.repository.query.Param
 import org.springframework.messaging.simp.SimpMessagingTemplate
+import org.springframework.security.access.prepost.PreAuthorize
+import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.stereotype.Service
 import org.springframework.util.FileCopyUtils
 import org.springframework.util.FileSystemUtils
@@ -31,7 +34,7 @@ import java.nio.file.Paths
 class ImageService @Autowired constructor (var imageRepository: ImageRepository, var resourceLoader: ResourceLoader,
                                            var report: ConditionEvaluationReport, var counterService: CounterService,
                                            var gaugeService: GaugeService, var inMemoryMetricRepository: InMemoryMetricRepository,
-                                           var messagingTemplate: SimpMessagingTemplate) {
+                                           var messagingTemplate: SimpMessagingTemplate, var userRepository: UserRepository) {
 
     init {
         counterService.reset("files.uploaded")
@@ -52,7 +55,8 @@ class ImageService @Autowired constructor (var imageRepository: ImageRepository,
     fun createImage(file: MultipartFile) {
         if (!file.isEmpty) {
             Files.copy(file.inputStream, Paths.get(UPLOAD_ROOT, file.originalFilename))
-            imageRepository.save(Image(file.originalFilename))
+            imageRepository.save(Image(file.originalFilename,
+                    userRepository.findByUsername(SecurityContextHolder.getContext().authentication.name)))
             counterService.increment("files.uploaded")
             gaugeService.submit("files.uploaded.lastBytes",file.size.toDouble())
             inMemoryMetricRepository.increment(Delta("files.uploaded.totalBytes",file.size.toDouble()))
@@ -60,7 +64,8 @@ class ImageService @Autowired constructor (var imageRepository: ImageRepository,
         }
     }
 
-    fun deleteImage(filename: String) {
+    @PreAuthorize("@imageRepository.findByName(#filename)?.owner?.username == authentication?.name or hasRole('ADMIN')")
+    fun deleteImage(@Param("filename")filename: String) {
         var byName: Image = imageRepository.findByName(filename)
         imageRepository.delete(byName)
         Files.deleteIfExists(Paths.get(UPLOAD_ROOT, filename))
@@ -73,14 +78,19 @@ class ImageService @Autowired constructor (var imageRepository: ImageRepository,
         FileSystemUtils.deleteRecursively(File(UPLOAD_ROOT))
         Files.createDirectory(Paths.get(UPLOAD_ROOT))
 
+        var tyron:User = userRepository.save(User("tyron","lannister", arrayOf("ROLE_ADMIN","ROLE_USER")))
+        var john:User = userRepository.save(User("john","snow", arrayOf("ROLE_USER")))
+        var khalisi:User = userRepository.save(User("khalisi","dragon", arrayOf("ROLE_USER")))
+
         FileCopyUtils.copy("Test File 1", FileWriter(UPLOAD_ROOT + "/test1"))
-        imageRepository.save(Image("test1"))
+        imageRepository.save(Image("test1", tyron))
 
         FileCopyUtils.copy("Test File 2", FileWriter(UPLOAD_ROOT + "/test2"))
-        imageRepository.save(Image("test2"))
+        imageRepository.save(Image("test2", tyron))
 
         FileCopyUtils.copy("Test File 3", FileWriter(UPLOAD_ROOT + "/test3"))
-        imageRepository.save(Image("test3"))
+        imageRepository.save(Image("test3", khalisi))
+
 
     }
 }

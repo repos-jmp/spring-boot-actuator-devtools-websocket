@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:th="http://www.thymeleaf.org">
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/thymeleaf-extras-springsecurity">
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>ImageApp</title>
@@ -8,7 +9,18 @@
     <link rel="stylesheet" href="/main.css" />
 </head>
 <body>
-<h2>Spring Boot WebSocket Image App</h2>
+<div>
+    <span sec:authentication="name" /> has <span sec:authentication="authorities" />
+    <form sec:authorize-expr="isFullyAuthenticated()" method="post" th:action="@{/logout}">
+        <input type="submit" value="Sign Off" />
+    </form>
+    <form sec:authorize-expr="!isFullyAuthenticated()" method="post" th:action="@{/login}">
+        <label>Username: </label><input type="text" name="username" value="" />
+        <label>Password: </label><input type="password" name="password" value="" />
+        <input type="submit" value="Sign On" />
+    </form>
+</div>
+<h2>Spring Boot WebSocket Image ABC</h2>
 <h3 th:if="${#vars['flash.message']}" th:text="${#vars['flash.message']}" class="flash"></h3>
 <div>
     <h3 th:text="${page.number+1} + ' of ' + ${page.totalPages}"></h3>
@@ -16,7 +28,7 @@
     <table>
         <thead>
         <tr>
-            <th>Id</th><th>Name</th><th>Image</th>
+            <th>Id</th><th>Name</th><th>Image</th><th>Owner</th>
         </tr>
         </thead>
         <tbody>
@@ -24,8 +36,9 @@
             <td th:text="${image.id}" />
             <td th:text="${image.name}" />
             <td><a th:href="@{'/images/' + ${image.name} + '/raw'}"><img th:src="@{'/images/' + ${image.name} + '/raw'}" class="thumbnail"/></a></td>
+            <td th:text="${image.owner.username}" />
             <td>
-                <form th:method="delete" th:action="@{'/images/' + ${image.name}}">
+                <form sec:authorize-expr="isFullyAuthenticated()" th:method="delete" th:action="@{'/images/' + ${image.name}}">
                     <input type="submit" value="Delete" />
                 </form>
             </td>
@@ -36,7 +49,7 @@
         <li th:if="${prev}"><a th:href="@{/(size=${prev.pageSize},page=${prev.pageNumber})}">Previous</a></li>
         <li th:if="${next}"><a th:href="@{/(size=${next.pageSize},page=${next.pageNumber})}">Next</a></li>
     </ul>
-    <form method="post" enctype="multipart/form-data" action="/images">
+    <form sec:authorize-expr="isFullyAuthenticated()" method="post" enctype="multipart/form-data" th:action="@{/images}">
         <p><input type="file" name="file" /></p>
         <p><input type="submit" value="Upload" /></p>
     </form>
